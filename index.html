@@ -47,15 +47,12 @@
 
 <script>
 
-  var map = L.map( 'map', {
-    crs: L.CRS.EPSG4326,
-  });
+  var map = L.map( 'map');
 
-  var osm = L.tileLayer('https://osm-{s}.gs.mil/tiles/default_pc/{z}/{x}/{y}.png', {
-    subdomains: '1234',
-    attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> <strong>',
-  });
-  osm.addTo( map );
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; <a href="https://openstreetmap.org/copyright">OpenStreetMap contributors</a>'
+      }).addTo(map);
 
   // OGC Open API - Features
   var collectionId = "nhsl_hazard_threat_all_indicators_s", // collection id
