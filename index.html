@@ -15,6 +15,27 @@
       width: 100%;
       height: 500px; 
     }
+
+    #modal {
+      background-color: white;
+      animation-name: progress;
+      animation-duration: 2s;
+      animation-iteration-count: infinite;
+      height: 4px;
+      margin-top: -4px;
+    }
+
+    @keyframes progress {
+      0% {
+        background-color: white;
+      }
+      50% {
+        background-color:rgba(255, 0, 0, 0.500);
+      }
+      100% {
+        background-color: white;
+      }
+    }
   </style>
 
 </head>
@@ -32,15 +53,16 @@
 
   var osm = L.tileLayer('https://osm-{s}.gs.mil/tiles/default_pc/{z}/{x}/{y}.png', {
     subdomains: '1234',
-    attribution: '© <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> <strong>',
+    attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> <strong>',
   });
   osm.addTo( map );
 
   // OGC Open API - Features
   var collectionId = "nhsl_hazard_threat_all_indicators_s", // collection id
-      featureProperties = "Sauid,MHn_Intensity", // specify which feature properties you need
+      featureProperties = "Sauid,MHn_Intensity", // limit properties to improve performance
       serviceUrl = "https://geo-api.dev.riskprofiler.ca",
-      reqUrl = serviceUrl + "/collections/" + collectionId + "/items?limit=10",
+      limit = 100, // depending on the resource, this could impact performance significantly
+      reqUrl = serviceUrl + "/collections/" + collectionId + "/items?limit=" + limit,
       xhr;
 
   const wfs3layer = L.geoJSON([], {
@@ -60,34 +82,51 @@
     }
     pp += "</table>"
     return pp;
-  },
-  ).addTo( map );
+  }).addTo( map );
 
   function addData( url ) {
 
-    if ( xhr ) {
-      xhr.abort();
-    }
+    var nxt_lnk;
 
     xhr = $.getJSON( url, function ( data ) {
       wfs3layer.addData( data );
       for ( var l in data.links ) {
-        var lnk = data.links[ l ];
+        lnk = data.links[ l ];
         if ( lnk.rel == "next" ) {
-          addData( lnk.href );
+          nxt_lnk = lnk.href;
+          break;
         }
       }
-      // map.fitBounds( wfs3layer.getBounds() );
+      
+      // if next link continue loading data
+      if ( nxt_lnk ) {
+        addData( nxt_lnk );
+      } else {
+        
+        // done with paging so remove progress
+        $( '#modal' ).remove();
+      }
     });
   }
 
   map.on( 'load zoomend moveend', function() {
+    
+    // add progress indicator
+    if( $( '#modal' ).length == 0 ) {
+      $( '#map' ).before( '<div id="modal"></div>' );
+    }
+    
     loadData();
   }); 
 
   map.setView( [49.2827, -123.1207], 12 );
 
   function loadData() {
+
+    if ( xhr ) {
+      xhr.abort();
+    }
+
     wfs3layer.clearLayers(); // remove all features in layer
     addData( reqUrl + "&properties=" + featureProperties + "&bbox=" + map.getBounds().toBBoxString() );
   }
