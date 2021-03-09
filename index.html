@@ -11,9 +11,32 @@
   <script src="https://code.jquery.com/jquery-3.5.1.min.js" integrity="sha256-9/aliU8dGd2tb6OSsuzixeV4y/faTqgFtohetphbbj0=" crossorigin="anonymous"></script>
 
   <style>
-    .map {
+
+    body {
+        font-family: Arial, Helvetica, sans-serif;
+    }
+
+    #map {
       width: 100%;
       height: 500px; 
+    }
+
+    .legend {
+        line-height: 18px;
+        color: #555;
+        background: white;
+        background: rgba(255,255,255,0.8);
+        box-shadow: 0 0 15px rgba(0,0,0,0.2);
+        border-radius: 5px;
+        padding: 6px 8px;
+    }
+
+    .legend i {
+        width: 18px;
+        height: 18px;
+        float: left;
+        margin-right: 8px;
+        opacity: 0.7;
     }
 
     #modal {
@@ -42,43 +65,40 @@
 
 <body>
   <h1>Sample Leaflet Map with OGC API - Features</h1>
-  <div id="map" class="map"></div>
+  <div id="map"></div>
 </body>
 
 <script>
 
-  var map = L.map( 'map');
-
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        attribution: '&copy; <a href="https://openstreetmap.org/copyright">OpenStreetMap contributors</a>'
-      }).addTo(map);
-
-  // OGC Open API - Features
-  var collectionId = "nhsl_hazard_threat_all_indicators_s", // collection id
+  var map = L.map( 'map' ),
+      legend = L.control( { position: 'bottomright' } ),
+      collectionId = "nhsl_hazard_threat_all_indicators_s", // collection id
       featureProperties = "Sauid,MHn_Intensity", // limit properties to improve performance
-      serviceUrl = "https://geo-api.dev.riskprofiler.ca",
-      limit = 100, // depending on the resource, this could impact performance significantly
-      reqUrl = serviceUrl + "/collections/" + collectionId + "/items?limit=" + limit,
+      scenario_prop = "MHn_Intensity", // property used for classification
+      base_url = "https://geo-api.dev.riskprofiler.ca",
+      limit = 1000, // depending on the resource, this could impact performance significantly
+      reqUrl = base_url + "/collections/" + collectionId + "/items?limit=" + limit,
+      pauseLoad = false,
       xhr;
 
-  const wfs3layer = L.geoJSON([], {
-    style: function( feature ) {
-      // very basic styling..
-      return {
-        color: "#0000bb",
-        weight: 2
-      };
-    }
-  }).bindPopup( function( layer ) {
-    var pp = "<table class='fi'><th colspan='2'>" + collectionId + "</td></th>";
-    for ( var p in layer.feature.properties ) {
-      if ( p != "geom_poly" ) {
-        pp += "<tr><td>" + p + "</td><td> " + layer.feature.properties[ p ] + "</td></tr>"
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; <a href="https://openstreetmap.org/copyright">OpenStreetMap contributors</a>'
+  }).addTo( map );
+
+  const wfs3layer = L.geoJSON([], { style: featureStyle }).bindPopup( 
+    function( layer ) {
+
+      pauseLoad = true;
+
+      var pp = "<table class='fi'><th colspan='2'>" + collectionId + "</td></th>";
+      for ( var p in layer.feature.properties ) {
+        if ( p != "geom_poly" ) {
+          pp += "<tr><td>" + p + "</td><td> " + layer.feature.properties[ p ] + "</td></tr>"
+        }
       }
-    }
-    pp += "</table>"
-    return pp;
+      pp += "</table>"
+      return pp;
   }).addTo( map );
 
   function addData( url ) {
@@ -113,7 +133,10 @@
       $( '#map' ).before( '<div id="modal"></div>' );
     }
     
-    loadData();
+    if ( pauseLoad === false ) {
+      loadData();
+    }
+    
   }); 
 
   map.setView( [49.2827, -123.1207], 12 );
@@ -127,6 +150,48 @@
     wfs3layer.clearLayers(); // remove all features in layer
     addData( reqUrl + "&properties=" + featureProperties + "&bbox=" + map.getBounds().toBBoxString() );
   }
+
+  function getColor(d) {
+      return d > 0.7 ? '#800026' :
+          d > 0.6  ? '#BD0026' :
+          d > 0.5  ? '#E31A1C' :
+          d > 0.4  ? '#FC4E2A' :
+          d > 0.3   ? '#FD8D3C' :
+          d > 0.2   ? '#FEB24C' :
+          d > 0.1   ? '#FED976' :
+                      '#FFEDA0';
+  }
+
+  function featureStyle( feature ) {
+      return {
+          fillColor: getColor( feature.properties[ scenario_prop ] ),
+          weight: 0.5,
+          opacity: 1,
+          color: 'white',
+          dashArray: '0',
+          fillOpacity: 0.5
+      };
+  }
+
+  legend.onAdd = function ( map ) {
+
+    var div = L.DomUtil.create('div', 'info legend'),
+        grades = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7],
+        labels = [];
+
+    div.innerHTML = "<div style=\"padding: 3px;\"><b>" + scenario_prop + "</b></div>";
+
+    // loop through our density intervals and generate a label with a colored square for each interval
+    for (var i = 0; i < grades.length; i++ ) {
+        div.innerHTML +=
+            '<i style="background:' + getColor(grades[i]) + '"></i> ' +
+            grades[i] + ( grades[i + 1] ? '&ndash;' + grades[i + 1] + '<br>' : '+' );
+    }
+
+    return div;
+  };
+
+  legend.addTo( map );
 
 </script>
 
