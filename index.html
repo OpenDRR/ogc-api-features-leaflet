@@ -21,22 +21,32 @@
       height: 500px; 
     }
 
+    #alert {
+      position: absolute;
+      z-index: 100;
+      bottom: 0px;
+      left: 0px;
+      background: rgb(220, 20, 20);
+      color: white;
+      padding: 5px;
+    }
+
     .legend {
-        line-height: 18px;
-        color: #555;
-        background: white;
-        background: rgba(255,255,255,0.8);
-        box-shadow: 0 0 15px rgba(0,0,0,0.2);
-        border-radius: 5px;
-        padding: 6px 8px;
+      line-height: 18px;
+      color: #555;
+      background: white;
+      background: rgba(255,255,255,0.8);
+      box-shadow: 0 0 15px rgba(0,0,0,0.2);
+      border-radius: 5px;
+      padding: 6px 8px;
     }
 
     .legend i {
-        width: 18px;
-        height: 18px;
-        float: left;
-        margin-right: 8px;
-        opacity: 0.7;
+      width: 18px;
+      height: 18px;
+      float: left;
+      margin-right: 8px;
+      opacity: 0.7;
     }
 
     #modal {
@@ -59,13 +69,45 @@
         background-color: white;
       }
     }
+
+    .attr {
+        width: 25%;
+        float: left;
+    }
+
+    .prop {
+        font-weight: bold;
+        margin-right: 10px;
+    }
+
+    .prop::after {
+        content: ':';
+    }
+
+    .val {
+        float: right;
+        margin-right: 10px;
+    }
+
+    #sidebar {
+        overflow: auto;
+    }
   </style>
 
 </head>
 
 <body>
+  
   <h1>Sample Leaflet Map with OGC API - Features</h1>
+  
+  <div id="alert">Too many results returned! Not all features were added to the map. Try zooming into a smaller map extent.</div>
+    
   <div id="map"></div>
+  
+  <div id="sidebar"></div>
+
+  <p></p>
+
 </body>
 
 <script>
@@ -77,8 +119,8 @@
       scenario_prop = "MHn_Intensity", // property used for classification
       base_url = "https://geo-api.dev.riskprofiler.ca",
       limit = 1000, // depending on the resource, this could impact performance significantly
+      featureLimit = 10000, // maximum number of features to bring to client
       reqUrl = base_url + "/collections/" + collectionId + "/items?limit=" + limit,
-      pauseLoad = false,
       xhr;
 
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -86,27 +128,23 @@
     attribution: '&copy; <a href="https://openstreetmap.org/copyright">OpenStreetMap contributors</a>'
   }).addTo( map );
 
-  const wfs3layer = L.geoJSON([], { style: featureStyle }).bindPopup( 
-    function( layer ) {
-
-      pauseLoad = true;
-
-      var pp = "<table class='fi'><th colspan='2'>" + collectionId + "</td></th>";
-      for ( var p in layer.feature.properties ) {
-        if ( p != "geom_poly" ) {
-          pp += "<tr><td>" + p + "</td><td> " + layer.feature.properties[ p ] + "</td></tr>"
-        }
-      }
-      pp += "</table>"
-      return pp;
-  }).addTo( map );
+  const wfs3layer = L.geoJSON([], { style: featureStyle }).addTo( map );
 
   function addData( url ) {
 
-    var nxt_lnk;
+    var nxt_lnk,
+        len = wfs3layer.getLayers().length;
 
     xhr = $.getJSON( url, function ( data ) {
+
+      if ( len >= featureLimit ) {
+        $( '#modal' ).remove();
+        $( '#alert' ).show();
+        return;
+      }
+
       wfs3layer.addData( data );
+      
       for ( var l in data.links ) {
         lnk = data.links[ l ];
         if ( lnk.rel == "next" ) {
@@ -132,22 +170,24 @@
     if( $( '#modal' ).length == 0 ) {
       $( '#map' ).before( '<div id="modal"></div>' );
     }
-    
-    if ( pauseLoad === false ) {
-      loadData();
-    }
-    
+    loadData();
+
   }); 
 
   map.setView( [49.2827, -123.1207], 12 );
 
   function loadData() {
 
+    $( '#alert' ).hide();
+
     if ( xhr ) {
       xhr.abort();
     }
-
-    wfs3layer.clearLayers(); // remove all features in layer
+    
+    // clear the features in the layer
+    wfs3layer.clearLayers();
+    
+    // get the data from API
     addData( reqUrl + "&properties=" + featureProperties + "&bbox=" + map.getBounds().toBBoxString() );
   }
 
@@ -172,6 +212,50 @@
           fillOpacity: 0.5
       };
   }
+
+  wfs3layer.on( 'click', function ( e ) {
+
+    // zoom to selected feature
+    // var bounds = e.layer.getBounds();
+    // map.fitBounds( bounds );
+
+    $.ajax({
+        method: "GET",
+        tryCount : 0,
+        retryLimit : 3,
+        crossDomain: true,
+        url: base_url + "/collections/" + collectionId + "/items/" + e.layer.feature.id,
+        headers: { "content-type": "application/json" }
+    })
+    .done( function ( resp ) {
+
+        let props = resp.properties,
+            string = '';
+
+        for ( const key in props ) {
+
+            if ( key === 'geom_poly' || key === 'geom_point' ) { continue }
+
+            string +=
+                '<div class="attr"><span class="prop">' + key + '</span><span class="val">' + props[key] + '</span></div>';
+        }
+
+        $( '#sidebar' ).html( '<h3>Selected feature properties</h3>' + string );
+        
+    })
+    .fail( function ( error ) {
+        this.tryCount++;
+        if ( this.tryCount <= this.retryLimit ) {
+            //try again
+            $.ajax( this );
+            return;
+        }   
+        console.log( "Doh! " + error )         
+        return;
+        
+    });
+
+  });
 
   legend.onAdd = function ( map ) {
 
