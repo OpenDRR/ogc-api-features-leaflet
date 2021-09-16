@@ -114,9 +114,9 @@
 
   var map = L.map( 'map' ),
       legend = L.control( { position: 'bottomright' } ),
-      collectionId = "nhsl_hazard_threat_all_indicators_s", // collection id
-      featureProperties = "Sauid,MHn_Intensity", // limit properties to improve performance
-      scenario_prop = "MHn_Intensity", // property used for classification
+      collectionId = "nhsl_physical_exposure_all_indicators_s", // collection id
+      featureProperties = "Sauid,E_LandUse", // limit properties to improve performance
+      scenario_prop = "E_LandUse", // property used for classification
       base_url = "https://geo-api.stage.riskprofiler.ca",
       limit = 1000, // depending on the resource, this could impact performance significantly
       featureLimit = 10000, // maximum number of features to bring to client
@@ -192,14 +192,12 @@
   }
 
   function getColor(d) {
-      return d > 0.7 ? '#800026' :
-          d > 0.6  ? '#BD0026' :
-          d > 0.5  ? '#E31A1C' :
-          d > 0.4  ? '#FC4E2A' :
-          d > 0.3   ? '#FD8D3C' :
-          d > 0.2   ? '#FEB24C' :
-          d > 0.1   ? '#FED976' :
-                      '#FFEDA0';
+      return d == 'COMM-IND' ? '#800026' :
+          d == 'MIXED' ? '#BD0026' :
+          d == 'RES-HD' ? '#E31A1C' :
+          d == 'RES-LD' ? '#FC4E2A' :
+          d == 'RES-MD' ? '#FD8D3C' :
+                          '#FEB24C';
   }
 
   function featureStyle( feature ) {
@@ -260,7 +258,7 @@
   legend.onAdd = function ( map ) {
 
     var div = L.DomUtil.create('div', 'info legend'),
-        grades = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7],
+        grades = ['COMM-IND', 'MIXED', 'RES-HD', 'RES-LD', 'RES-MD', 'RURAL'],
         labels = [];
 
     div.innerHTML = "<div style=\"padding: 3px;\"><b>" + scenario_prop + "</b></div>";
@@ -268,8 +266,7 @@
     // loop through our density intervals and generate a label with a colored square for each interval
     for (var i = 0; i < grades.length; i++ ) {
         div.innerHTML +=
-            '<i style="background:' + getColor(grades[i]) + '"></i> ' +
-            grades[i] + ( grades[i + 1] ? '&ndash;' + grades[i + 1] + '<br>' : '+' );
+            '<span style="white-space:nowrap;"><i style="background:' + getColor(grades[i]) + '"></i> ' + grades[i] + '</span><br>';
     }
 
     return div;
