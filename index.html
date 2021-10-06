@@ -114,10 +114,10 @@
 
   var map = L.map( 'map' ),
       legend = L.control( { position: 'bottomright' } ),
-      collectionId = "nhsl_hazard_threat_all_indicators_s", // collection id
-      featureProperties = "Sauid,MHn_Intensity", // limit properties to improve performance
-      scenario_prop = "MHn_Intensity", // property used for classification
-      base_url = "https://geo-api.dev.riskprofiler.ca",
+      collectionId = "opendrr_nhsl_physical_exposure_indicators_s", // collection id
+      featureProperties = "Sauid,Et_PopNight_Ha", // limit properties to improve performance
+      scenario_prop = "Et_PopNight_Ha", // property used for classification
+      base_url = "https://geo-api.stage.riskprofiler.ca",
       limit = 1000, // depending on the resource, this could impact performance significantly
       featureLimit = 10000, // maximum number of features to bring to client
       reqUrl = base_url + "/collections/" + collectionId + "/items?limit=" + limit,
@@ -192,14 +192,11 @@
   }
 
   function getColor(d) {
-      return d > 0.7 ? '#800026' :
-          d > 0.6  ? '#BD0026' :
-          d > 0.5  ? '#E31A1C' :
-          d > 0.4  ? '#FC4E2A' :
-          d > 0.3   ? '#FD8D3C' :
-          d > 0.2   ? '#FEB24C' :
-          d > 0.1   ? '#FED976' :
-                      '#FFEDA0';
+      return d > 75  ? '#226633' :
+          d > 35   ? '#4A8758' :
+          d > 15   ? '#76A882' :
+          d > 5   ? '#A7CFB4' :
+                      '#DCF5E9';
   }
 
   function featureStyle( feature ) {
@@ -209,7 +206,7 @@
           opacity: 1,
           color: 'white',
           dashArray: '0',
-          fillOpacity: 0.5
+          fillOpacity: 0.7
       };
   }
 
@@ -260,16 +257,16 @@
   legend.onAdd = function ( map ) {
 
     var div = L.DomUtil.create('div', 'info legend'),
-        grades = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7],
-        labels = [];
+        grades = [5, 15, 35, 75],
+        labels = [' People/Ha', ' People/Ha', ' People/Ha', ' People/Ha'];
 
-    div.innerHTML = "<div style=\"padding: 3px;\"><b>" + scenario_prop + "</b></div>";
+    div.innerHTML = "<div style=\"padding: 3px;\"><b>Population Density</b></div>";
 
     // loop through our density intervals and generate a label with a colored square for each interval
     for (var i = 0; i < grades.length; i++ ) {
         div.innerHTML +=
             '<i style="background:' + getColor(grades[i]) + '"></i> ' +
-            grades[i] + ( grades[i + 1] ? '&ndash;' + grades[i + 1] + '<br>' : '+' );
+            grades[i] + ( grades[i + 1] ? '&ndash;' + grades[i + 1] + labels[i] + '<br>' : '+' + labels[i]);
     }
 
     return div;
