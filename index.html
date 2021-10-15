@@ -161,6 +161,10 @@
         // done with paging so remove progress
         $( '#modal' ).remove();
       }
+    })
+    .fail( function ( jqXHR, error ) {
+      console.log( 'Unable to load json - ' + error );
+      $( '#modal' ).remove();
     });
   }
 
